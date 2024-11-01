@@ -31,7 +31,7 @@ class MainActivity : AppCompatActivity() {
                 }
 
                 override fun onResult(result: MutableList<Classifications>?, inferenceTime: Long) {
-                    moveToResult()
+                    moveToResult(result)
                 }
             }
         )
@@ -73,9 +73,17 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun moveToResult() {
+    private fun moveToResult(result: MutableList<Classifications>?) {
+        val resultString = StringBuilder()
+        result?.forEach { classification ->
+            classification.categories.forEach { category ->
+                resultString.append("Label: ${category.label}, Confidence: ${category.score * 100}%\n")
+            }
+        }
+
         val intent = Intent(this, ResultActivity::class.java).apply {
             putExtra("IMAGE_URI", currentImageUri.toString())
+            putExtra("RESULT", resultString.toString())
         }
         startActivity(intent)
     }

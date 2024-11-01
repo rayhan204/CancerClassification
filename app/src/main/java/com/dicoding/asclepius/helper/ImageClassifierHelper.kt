@@ -82,8 +82,6 @@ class ImageClassifierHelper(
                } else {
                    MediaStore.Images.Media.getBitmap(context.contentResolver, imageUri)
                }
-
-               // Pastikan bitmap berada dalam format ARGB_8888
                bitmap.copy(Bitmap.Config.ARGB_8888, true)
            } catch (e: Exception) {
                Log.e(TAG, "Error converting URI to Bitmap: ${e.message}")

@@ -17,27 +17,18 @@ class ResultActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         // TODO: Menampilkan hasil gambar, prediksi, dan confidence score.
-        val results = intent.getSerializableExtra("RESULT") as? List<Classifications>
+        val results = intent.getStringExtra("RESULT")
         val imageUri = intent.getStringExtra("IMAGE_URI")
 
         imageUri?.let {
             binding.resultImage.setImageURI(Uri.parse(it))
         }
+
         results?.let { displayResults(it)}
     }
 
-    private fun displayResults(results: List<Classifications>) {
-        val resultText = StringBuilder()
-
-        results.forEach { classifications ->
-            classifications.categories.forEach{ category ->
-                resultText.append("Label: ${category.label}\n")
-                resultText.append("Confidence: ${category.score * 100}%\n\n")
-            }
-
-        }
-        binding.resultText.text = resultText.toString()
-
+    private fun displayResults(results: String) {
+        binding.resultText.text = results
     }
 
 }
