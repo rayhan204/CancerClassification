@@ -8,15 +8,32 @@ import android.util.Log
 import android.widget.Toast
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.navigation.fragment.NavHostFragment
+import com.dicoding.asclepius.R
 import com.dicoding.asclepius.databinding.ActivityMainBinding
 import com.dicoding.asclepius.helper.ImageClassifierHelper
+import com.yalantis.ucrop.UCrop
 import org.tensorflow.lite.task.vision.classifier.Classifications
+import java.io.File
+import java.text.NumberFormat
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
     private lateinit var imageClassifierHelper: ImageClassifierHelper
     private var currentImageUri: Uri? = null
+
+    private val launcherGallery = registerForActivityResult(
+        ActivityResultContracts.PickVisualMedia()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            currentImageUri = uri
+            startCrop(uri)
+            showImage()
+        } else {
+            Log.d("Photo Picker", "No media selected")
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -30,60 +47,78 @@ class MainActivity : AppCompatActivity() {
                     showToast(error)
                 }
 
-                override fun onResult(result: MutableList<Classifications>?, inferenceTime: Long) {
-                    moveToResult(result)
+                override fun onResult(result: List<Classifications>?, inferenceTime: Long) {
+                    result?.let { classifications ->
+                        if (classifications.isNotEmpty() && classifications[0].categories.isNotEmpty()) {
+                            val label = classifications[0].categories[0].label
+                            val score = NumberFormat.getPercentInstance()
+                                .format(classifications[0].categories[0].score).trim()
+
+                            val displayResult = "$label\n$score"
+                            moveToResult(displayResult)
+                        } else {
+                            showToast("Hasil prediksi tidak ditemukan")
+                        }
+                    }
                 }
             }
         )
-        binding.galleryButton.setOnClickListener{ startGallery() }
-        binding.analyzeButton.setOnClickListener{ analyzeImage() }
+        val navHost = supportFragmentManager.findFragmentById(R.id.nav_host_fragment) as NavHostFragment
+        val navController = navHost.navController
+        binding.tvHistory.setOnClickListener {
+            navController.navigate(R.id.action_main_to_history)
+        }
+
+        binding.galleryButton.setOnClickListener { startGallery() }
+        binding.analyzeButton.setOnClickListener { analyzeImage() }
 
     }
 
-    private fun startGallery() {
-        // TODO: Mendapatkan gambar dari Gallery.
-        launcherGallery.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+
+    private fun startCrop(uri: Uri) {
+        val destinationUri = Uri.fromFile(File(cacheDir, "cropped_image.jpg"))
+
+        UCrop.of(uri, destinationUri)
+            .withAspectRatio(1f, 1f)
+            .withMaxResultSize(450, 450)
+            .start(this)
     }
 
-    private val launcherGallery = registerForActivityResult(
-        ActivityResultContracts.PickVisualMedia()
-    ) { uri: Uri? ->
-        if (uri != null) {
-            currentImageUri = uri
+    @Deprecated("Deprecated in Java")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (resultCode == RESULT_OK && requestCode == UCrop.REQUEST_CROP) {
+            currentImageUri = UCrop.getOutput(data!!)
             showImage()
-        } else {
-            Log.d("Photo Picker", "No media selected")
+        } else if (resultCode == UCrop.RESULT_ERROR) {
+            val cropError = UCrop.getError(data!!)
+            showToast("Crop error: ${cropError?.message}")
         }
     }
 
+    private fun startGallery() {
+        launcherGallery.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+    }
+
     private fun showImage() {
-        // TODO: Menampilkan gambar sesuai Gallery yang dipilih.
         currentImageUri?.let {
-            Log.d( "Image URI", "showImage: $it")
+            Log.d("Image URI", "showImage: $it")
             binding.previewImageView.setImageURI(it)
         }
     }
 
     private fun analyzeImage() {
-        // TODO: Menganalisa gambar yang berhasil ditampilkan.
         currentImageUri?.let {
             imageClassifierHelper.classifyStaticImage(it)
         } ?: run {
-            showToast("silahkan pilih gambar terlebih dahulu")
+            showToast("Silahkan pilih gambar terlebih dahulu")
         }
     }
 
-    private fun moveToResult(result: MutableList<Classifications>?) {
-        val resultString = StringBuilder()
-        result?.forEach { classification ->
-            classification.categories.forEach { category ->
-                resultString.append("Label: ${category.label}, Confidence: ${category.score * 100}%\n")
-            }
-        }
-
+    private fun moveToResult(displayResult: String) {
         val intent = Intent(this, ResultActivity::class.java).apply {
             putExtra("IMAGE_URI", currentImageUri.toString())
-            putExtra("RESULT", resultString.toString())
+            putExtra("RESULT", displayResult)
         }
         startActivity(intent)
     }

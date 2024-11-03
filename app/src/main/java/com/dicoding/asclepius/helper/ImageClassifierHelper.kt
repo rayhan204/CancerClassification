@@ -92,7 +92,7 @@ class ImageClassifierHelper(
     interface ClassifierListener {
         fun onError(error: String)
         fun onResult (
-            result: MutableList<Classifications>?,
+            result: List<Classifications>?,
             inferenceTime: Long
         )
     }

@@ -3,13 +3,17 @@ package com.dicoding.asclepius.view
 import android.net.Uri
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-import com.dicoding.asclepius.R
+import androidx.activity.viewModels
+import com.dicoding.asclepius.data.local.entity.HistoryEntity
 import com.dicoding.asclepius.databinding.ActivityResultBinding
-import org.tensorflow.lite.task.vision.classifier.Classifications
-import java.lang.StringBuilder
+import com.dicoding.asclepius.view_model.ResultViewModel
+import com.dicoding.asclepius.view_model.ViewModelFactory
 
 class ResultActivity : AppCompatActivity() {
     private lateinit var binding: ActivityResultBinding
+    private val resultViewModel: ResultViewModel by viewModels {
+        ViewModelFactory.getInstance(this)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -25,6 +29,17 @@ class ResultActivity : AppCompatActivity() {
         }
 
         results?.let { displayResults(it)}
+
+        binding.btnSave.setOnClickListener{
+            val historyEntity = HistoryEntity(
+                id = System.currentTimeMillis().toString(),
+                prediction = results ?: "no result",
+                image = imageUri ?: ""
+            )
+
+            resultViewModel.saveHistory(historyEntity)
+            finish()
+        }
     }
 
     private fun displayResults(results: String) {
